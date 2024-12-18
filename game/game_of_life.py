@@ -31,6 +31,8 @@
 
 import pygame
 import numpy as np
+from game_state import GameOfLife
+from ui import draw_button, draw_grid, draw_cells
 
 # Initialize Pygame
 pygame.init()
@@ -44,9 +46,6 @@ n_cells_x, n_cells_y = 40, 30
 cell_width = width // n_cells_x
 cell_height = height // n_cells_y
 
-# Game state
-game_state = np.random.choice([0, 1], size=(n_cells_x, n_cells_y), p=[0.8, 0.2])
-
 # Colors
 white = (255, 255, 255)
 black = (0, 0, 0)
@@ -55,56 +54,31 @@ green = (0, 255, 0)
 
 # Button dimensions
 button_width, button_height = 200, 50
-button_x, button_y = (width - button_width) // 2, height - button_height - 10
+button_x, button_y = (width - button_width * 3) // 2, height - button_height - 10
 
-def draw_button():
-    pygame.draw.rect(screen, green, (button_x, button_y, button_width, button_height))
-    font = pygame.font.Font(None, 36)
-    text = font.render("Next Generation", True, black)
-    text_rect = text.get_rect(center=(button_x + button_width // 2, button_y + button_height // 2))
-    screen.blit(text, text_rect)
+# Initialize games
+games = [GameOfLife(n_cells_x, n_cells_y)]
+current_game_index = 0
 
-def draw_grid():
-    for y in range(0, height, cell_height):
-        for x in range(0, width, cell_width):
-            cell = pygame.Rect(x, y, cell_width, cell_height)
-            pygame.draw.rect(screen, gray, cell, 1)
+def switch_game(index):
+    global current_game_index
+    if 0 <= index < len(games):
+        current_game_index = index
 
-def next_generation():
-    global game_state
-    new_state = np.copy(game_state)
-
-    for y in range(n_cells_y):
-        for x in range(n_cells_x):
-            n_neighbors = game_state[(x - 1) % n_cells_x, (y - 1) % n_cells_y] + \
-                          game_state[(x)     % n_cells_x, (y - 1) % n_cells_y] + \
-                          game_state[(x + 1) % n_cells_x, (y - 1) % n_cells_y] + \
-                          game_state[(x - 1) % n_cells_x, (y)     % n_cells_y] + \
-                          game_state[(x + 1) % n_cells_x, (y)     % n_cells_y] + \
-                          game_state[(x - 1) % n_cells_x, (y + 1) % n_cells_y] + \
-                          game_state[(x)     % n_cells_x, (y + 1) % n_cells_y] + \
-                          game_state[(x + 1) % n_cells_x, (y + 1) % n_cells_y]
-
-            if game_state[x, y] == 1 and (n_neighbors < 2 or n_neighbors > 3):
-                new_state[x, y] = 0
-            elif game_state[x, y] == 0 and n_neighbors == 3:
-                new_state[x, y] = 1
-
-    game_state = new_state
-
-def draw_cells():
-    for y in range(n_cells_y):
-        for x in range(n_cells_x):
-            cell = pygame.Rect(x * cell_width, y * cell_height, cell_width, cell_height)
-            if game_state[x, y] == 1:
-                pygame.draw.rect(screen, black, cell)
+def draw_buttons():
+    # Draw "Next Generation" button
+    draw_button(screen, button_x, button_y, button_width, button_height, "Next Generation", green, black)
+    # Draw "Save" button
+    draw_button(screen, button_x + button_width + 10, button_y, button_width, button_height, "Save", green, black)
+    # Draw "Load" button
+    draw_button(screen, button_x + 2 * (button_width + 10), button_y, button_width, button_height, "Load", green, black)
 
 running = True
 while running:
     screen.fill(white)
-    draw_grid()
-    draw_cells()
-    draw_button()
+    draw_grid(screen, width, height, cell_width, cell_height, gray)
+    draw_cells(screen, games[current_game_index].state, cell_width, cell_height, black)
+    draw_buttons()
     pygame.display.flip()
 
     for event in pygame.event.get():
@@ -112,10 +86,14 @@ while running:
             running = False
         if event.type == pygame.MOUSEBUTTONDOWN:
             if button_x <= event.pos[0] <= button_x + button_width and button_y <= event.pos[1] <= button_y + button_height:
-                next_generation()
+                games[current_game_index].next_generation()
+            elif button_x + button_width + 10 <= event.pos[0] <= button_x + 2 * button_width + 10 and button_y <= event.pos[1] <= button_y + button_height:
+                games[current_game_index].save_to_file()
+            elif button_x + 2 * (button_width + 10) <= event.pos[0] <= button_x + 3 * button_width + 20 and button_y <= event.pos[1] <= button_y + button_height:
+                games[current_game_index].load_from_file()
             else:
                 x, y = event.pos[0] // cell_width, event.pos[1] // cell_height
-                game_state[x, y] = not game_state[x, y]
+                games[current_game_index].state[x, y] = not games[current_game_index].state[x, y]
 
 pygame.quit()
 
