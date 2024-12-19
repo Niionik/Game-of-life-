@@ -33,6 +33,9 @@ import pygame
 import numpy as np
 from ui import draw_button
 from session_time import SessionTimer
+from state_manager import GameStateCaretaker
+from speed_controller import SpeedController
+from game_commands import ResetCommand
 
 # Initialize Pygame
 pygame.init()
@@ -96,24 +99,41 @@ def draw_cells():
 
 clock = pygame.time.Clock()
 
+# Ustawienia czasu
+tick_interval = 500  # czas w milisekundach między generacjami
+last_update_time = pygame.time.get_ticks()
 
-tick_interval = 500 
-
-session_timer = SessionTimer(tick_interval)
+session_timer = SessionTimer()
 
 paused = False
 
 running = True
+
+# Inicjalizacja
+caretaker = GameStateCaretaker()
+speed_controller = SpeedController(tick_interval)
+reset_command = ResetCommand(game_state)
+
+def draw_timer(screen, x, y):
+    font = pygame.font.Font(None, 36)
+    elapsed_time = session_timer.get_elapsed_time()
+    time_text = f"Time: {elapsed_time // 60}:{elapsed_time % 60:02}"
+    text_surface = font.render(time_text, True, black)
+    screen.blit(text_surface, (x, y))
+
 while running:
     screen.fill(white)
     draw_grid()
     draw_cells()
     draw_button(screen, button_x, button_y, button_width, button_height, "Next", green, black)
     draw_button(screen, button_x, button_y - 60, button_width, button_height, "Pause" if not paused else "Resume", green, black)
+    draw_timer(screen, 10, 10)
     pygame.display.flip()
 
-    if not paused and session_timer.should_update():
+    current_time = pygame.time.get_ticks()
+    if not paused and current_time - last_update_time > tick_interval:
         next_generation()
+        last_update_time = current_time
 
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
@@ -123,9 +143,29 @@ while running:
                 next_generation()
             elif button_x <= event.pos[0] <= button_x + button_width and button_y - 60 <= event.pos[1] <= button_y - 60 + button_height:
                 paused = not paused
+                if paused:
+                    session_timer.pause()
+                else:
+                    session_timer.resume()
+            elif some_reset_button_condition:  # Replace with actual condition
+                reset_command.execute()
+                session_timer.reset()
+            elif some_save_button_condition:  # Replace with actual condition
+                try:
+                    caretaker.save_state(game_state)
+                except ValueError as e:
+                    print(f"Error saving state: {e}")
+            elif some_load_button_condition:  # Replace with actual condition
+                try:
+                    loaded_state = caretaker.restore_state()
+                    if loaded_state is not None:
+                        game_state = loaded_state
+                except FileNotFoundError as e:
+                    print(f"Error loading state: {e}")
             else:
                 x, y = event.pos[0] // cell_width, event.pos[1] // cell_height
-                game_state[x, y] = not game_state[x, y]
+                if 0 <= x < grid_width and 0 <= y < grid_height:
+                    game_state[x, y] = not game_state[x, y]
 
     clock.tick(60)
 
