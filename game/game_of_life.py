@@ -31,6 +31,8 @@
 
 import pygame
 import numpy as np
+from ui import draw_button
+from session_time import SessionTimer
 
 # Initialize Pygame
 pygame.init()
@@ -56,13 +58,6 @@ green = (0, 255, 0)
 # Button dimensions
 button_width, button_height = 200, 50
 button_x, button_y = (width - button_width) // 2, height - button_height - 10
-
-def draw_button():
-    pygame.draw.rect(screen, green, (button_x, button_y, button_width, button_height))
-    font = pygame.font.Font(None, 36)
-    text = font.render("Next Generation", True, black)
-    text_rect = text.get_rect(center=(button_x + button_width // 2, button_y + button_height // 2))
-    screen.blit(text, text_rect)
 
 def draw_grid():
     for y in range(0, height, cell_height):
@@ -102,21 +97,23 @@ def draw_cells():
 clock = pygame.time.Clock()
 
 
-tick_interval = 500
-last_update_time = pygame.time.get_ticks()
+tick_interval = 500 
+
+session_timer = SessionTimer(tick_interval)
+
+paused = False
 
 running = True
 while running:
     screen.fill(white)
     draw_grid()
     draw_cells()
-    draw_button()
+    draw_button(screen, button_x, button_y, button_width, button_height, "Next", green, black)
+    draw_button(screen, button_x, button_y - 60, button_width, button_height, "Pause" if not paused else "Resume", green, black)
     pygame.display.flip()
 
-    current_time = pygame.time.get_ticks()
-    if current_time - last_update_time > tick_interval:
+    if not paused and session_timer.should_update():
         next_generation()
-        last_update_time = current_time
 
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
@@ -124,6 +121,8 @@ while running:
         if event.type == pygame.MOUSEBUTTONDOWN:
             if button_x <= event.pos[0] <= button_x + button_width and button_y <= event.pos[1] <= button_y + button_height:
                 next_generation()
+            elif button_x <= event.pos[0] <= button_x + button_width and button_y - 60 <= event.pos[1] <= button_y - 60 + button_height:
+                paused = not paused
             else:
                 x, y = event.pos[0] // cell_width, event.pos[1] // cell_height
                 game_state[x, y] = not game_state[x, y]
