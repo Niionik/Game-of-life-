@@ -99,6 +99,12 @@ def draw_cells():
             if game_state[x, y] == 1:
                 pygame.draw.rect(screen, black, cell)
 
+clock = pygame.time.Clock()
+
+
+tick_interval = 500
+last_update_time = pygame.time.get_ticks()
+
 running = True
 while running:
     screen.fill(white)
@@ -106,6 +112,11 @@ while running:
     draw_cells()
     draw_button()
     pygame.display.flip()
+
+    current_time = pygame.time.get_ticks()
+    if current_time - last_update_time > tick_interval:
+        next_generation()
+        last_update_time = current_time
 
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
@@ -116,6 +127,8 @@ while running:
             else:
                 x, y = event.pos[0] // cell_width, event.pos[1] // cell_height
                 game_state[x, y] = not game_state[x, y]
+
+    clock.tick(60)
 
 pygame.quit()
 
